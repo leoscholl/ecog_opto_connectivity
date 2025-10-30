@@ -538,7 +538,7 @@ def calc_latency_accllr(df, time_before=0.25, time_after=0.25,
 
     # Convert to connectivity
     max_erp = aopy.analysis.get_max_erp(filt_data, time_before, time_after, samplerate, max_search_window=None, trial_average=True)
-    serr = convert_latency_to_serr(stimulation_site, latency, max_erp, p, alpha=0.05, latency_cutoff=latency_cutoff)
+    serr = convert_latency_to_serr(stimulation_site, latency, max_erp, p, alpha=alpha, latency_cutoff=latency_cutoff)
     
     return serr, latency, p, max_erp, st, auc, se
 

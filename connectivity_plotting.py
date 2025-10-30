@@ -26,15 +26,14 @@ from aopy.analysis import calc_itpc, calc_fdrc_ranktest, calc_tfr_mean_fdrc_rank
 from aopy.analysis.latency import detect_itpc_response
 from aopy.visualization import overlay_sulci_on_spatial_map, plot_xy_scalebar, plot_tf_map_grid
 
-# cmap_accllr = sns.cubehelix_palette(start=0, rot=-.5, reverse=True, as_cmap=True)
-# cmap_slic = sns.cubehelix_palette(start=.5, rot=-.5, reverse=True, as_cmap=True)
-# cmap_granger = sns.cubehelix_palette(start=1., rot=-.5, reverse=True, as_cmap=True)
-# cmap_accllr = sns.blend_palette(['black', '#ead292'], n_colors=100, as_cmap=True)
-# cmap_slic = sns.blend_palette(['black', '#c2e4d7'], n_colors=100, as_cmap=True)
-# cmap_granger = sns.blend_palette(['black', '#bab0d9'], n_colors=100, as_cmap=True)
+color_monkey_1 = '#90d0df'
+color_monkey_2 = '#55afdf'
 color_accllr = '#ead292'
+color_accllr_text = '#dfbd5c'
 color_slic = '#c2e4d7'
+color_slic_text = '#7fc6aa'
 color_granger = '#bab0d9'
+color_granger_text = '#9d8ec9'
 cmap_accllr = sns.blend_palette(['black', color_accllr], n_colors=100, as_cmap=True)
 cmap_slic = sns.blend_palette(['black', color_slic], n_colors=100, as_cmap=True)
 cmap_granger = sns.blend_palette(['black', color_granger], n_colors=100, as_cmap=True)
