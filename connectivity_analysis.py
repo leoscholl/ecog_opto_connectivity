@@ -83,7 +83,7 @@ def make_equal_sizes(df, seed=None):
     # Sample equally from each condition
     df_balanced = (
         df.groupby('condition', group_keys=False)
-          .apply(lambda x: x.sample(min_count, random_state=seed))
+          .apply(lambda x: x.sample(min_count, random_state=seed), include_groups=False)
           .reset_index(drop=True)
     )
     
@@ -183,9 +183,6 @@ def get_bad_stim_trials(df, time_before=0.25, time_after=0, sd_thr=5, ch_frac=0.
     rms = np.expand_dims(rms, 0)
     trial_outliers = preproc.quality.detect_bad_trials(rms, sd_thr=sd_thr, 
                                                        ch_frac=ch_frac, debug=debug)
-        
-    # TODO: remove stim response outliers
-    # e.g. outliers in max_erp
     
     return trial_outliers | no_data_trials
 
@@ -215,6 +212,7 @@ def calc_slic_map(df, stim_site=None, time_before=0.25, time_after=0.25,
         window=(-taper_len,taper_len), n=taper_len, step=taper_len, 
         parallel=parallel, verbose=verbose
     )
+    angle_all[:,:,stim_ch] = 0 # angle at stim channels is 0 by definition; gets messed up by averaging
     
     # Take the difference between post- and pre- stimulation
     if return_angle and diff:
@@ -271,41 +269,6 @@ def extract_band_across_maps(freqs, time, coh_maps, band=(12,150), window=(-np.i
     coh_band = [calc_tfr_mean(freqs, time, coh_map, band=band, window=window)
                 for coh_map in coh_maps]
     return coh_band
-
-# to be deleted if not needed
-# def extract_coh_band_days(long_data, band=(12,150), window=(-np.inf, np.inf)):
-    
-#     coh_band_sites = []
-#     null_band_sites = []
-#     diff_sites = []
-#     p_sites = []
-#     gc_band_sites = []
-#     for idx in range(len(long_data['sites'])):
-#         coh_band_days = []
-#         null_band_days = []
-#         diff_days = []
-#         p_days = []
-#         gc_band_days = []
-#         for d in range(len(long_data['coh_map'][idx])):
-#             null_band, coh_band, diff, p = calc_tfr_mean_statistics(long_data['freqs'], long_data['time'], 
-#                                                                 long_data['coh_map'][idx][d], long_data['null_maps'][idx],
-#                                                                 band=band, window=window)
-#             gc_band = calc_tfr_mean(long_data['freqs'], long_data['time'][1:], long_data['gc_map'][idx][d],
-#                                 band=band, window=window)
-            
-#             coh_band_days.append(coh_band)
-#             null_band_days.append(null_band)
-#             diff_days.append(diff)
-#             p_days.append(p)
-#             gc_band_days.append(gc_band)
-        
-#         coh_band_sites.append(coh_band_days)
-#         null_band_sites.append(null_band_days)
-#         diff_sites.append(diff_days)
-#         p_sites.append(p_days)
-#         gc_band_sites.append(gc_band_days)
-        
-#     return coh_band_sites, null_band_sites, diff_sites, p_sites, gc_band_sites
 
 def calc_rolling_coh_trials(df, win_size, step=None, time_before=0.25, time_after=0.25, **kwargs):
     stim_sites = np.unique(df['stimulation_site'])    
@@ -550,121 +513,7 @@ from aopy import precondition
 from aopy.analysis import calc_mt_tfr
 
 from spectral_connectivity import Multitaper, Connectivity
-
 # Must install spectral_connectivity from github.com/leoscholl/spectral_connectivity
-# 
-# OR use this commented out code
-#
-# from spectral_connectivity.connectivity import _complex_inner_product, _nonsorted_unique
-# from spectral_connectivity.connectivity import _estimate_transfer_function, _remove_instantaneous_causality, _estimate_noise_covariance, _estimate_predictive_power
-# from spectral_connectivity.minimum_phase_decomposition import (
-#     minimum_phase_decomposition,
-# )
-# def pairwise_spectral_granger_prediction(c, pairs):
-#     """The amount of power at a node in a frequency explained by (is
-#     predictive of) the power at other nodes.
-
-#     Also known as spectral granger causality.
-
-#     References
-#     ----------
-#     .. [1] Geweke, J. (1982). Measurement of Linear Dependence and
-#            Feedback Between Multiple Time Series. Journal of the
-#            American Statistical Association 77, 304.
-
-#     """
-#     pairs = np.array(pairs)
-    
-#     fourier_coefficients = c.fourier_coefficients[..., np.newaxis]
-#     fourier_coefficients = fourier_coefficients.astype(c._dtype)
-
-#     # get unique indices
-#     _sxu = _nonsorted_unique(pairs[:, 0])
-#     _syu = _nonsorted_unique(pairs[:, 1])
-
-#     # compute subset of connections
-#     csm_shape = list(c._power.shape)
-#     csm_shape += [csm_shape[-1]]
-#     dtype = c._dtype
-#     csm = np.zeros(csm_shape, dtype=dtype)
-
-#     # compute forward connections
-#     _out = c._expectation(
-#         _complex_inner_product(
-#             fourier_coefficients[..., _sxu, :],
-#             fourier_coefficients[..., _syu, :],
-#             dtype=c._dtype,
-#         )
-#     )
-#     csm[..., _sxu.reshape(-1, 1), _syu.reshape(1, -1)] = _out
-
-#     # compute backward connections
-#     _out = c._expectation(
-#         _complex_inner_product(
-#             fourier_coefficients[..., _syu, :],
-#             fourier_coefficients[..., _sxu, :],
-#             dtype=c._dtype,
-#         )
-#     )
-#     csm[..., _syu.reshape(-1, 1), _sxu.reshape(1, -1)] = _out
-
-#     # compute diagonals
-#     for x in _syu:
-#         diag_out = c._expectation(
-#             _complex_inner_product(
-#                 fourier_coefficients[..., [x], :],
-#                 fourier_coefficients[..., [x], :],
-#                 dtype=c._dtype,
-#             )
-#         )
-#         csm[..., [x], [x]] = diag_out[..., 0]
-#     for x in _sxu:
-#         diag_out = c._expectation(
-#             _complex_inner_product(
-#                 fourier_coefficients[..., [x], :],
-#                 fourier_coefficients[..., [x], :],
-#                 dtype=c._dtype,
-#             )
-#         )
-#         csm[..., [x], [x]] = diag_out[..., 0]
-    
-#     total_power = c._power
-#     n_frequencies = total_power.shape[-2]
-#     non_neg_index = np.arange(0, (n_frequencies + 1) // 2)
-#     total_power = np.take(total_power, indices=non_neg_index, axis=-2)
-
-#     n_frequencies = csm.shape[-3]
-#     new_shape = list(csm.shape)
-#     new_shape[-3] = non_neg_index.size
-#     predictive_power = np.empty(new_shape)
-
-#     for pair_indices in pairs:
-#         pair_indices = np.array(pair_indices)[:, np.newaxis]
-#         try:
-#             minimum_phase_factor = minimum_phase_decomposition(
-#                 csm[..., pair_indices, pair_indices.T]
-#             )
-#             transfer_function = _estimate_transfer_function(minimum_phase_factor)[
-#                 ..., non_neg_index, :, :
-#             ]
-#             rotated_covariance = _remove_instantaneous_causality(
-#                 _estimate_noise_covariance(minimum_phase_factor)
-#             )
-#             predictive_power[
-#                 ..., pair_indices, pair_indices.T
-#             ] = _estimate_predictive_power(
-#                 total_power[..., pair_indices[:, 0]],
-#                 rotated_covariance,
-#                 transfer_function,
-#             )
-#         except np.linalg.LinAlgError:
-#             predictive_power[..., pair_indices, pair_indices.T] = np.nan
-
-#     n_signals = csm.shape[-1]
-#     diagonal_ind = np.diag_indices(n_signals)
-#     predictive_power[..., diagonal_ind[0], diagonal_ind[1]] = np.nan
-
-#     return predictive_power
 
 def calc_variability(df, stim_site=None, time_before=0.25, time_after=0.25,
                               band=[50,200], taper_len=0.03, debug=False):
