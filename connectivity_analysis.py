@@ -54,7 +54,7 @@ def load_df(postproc_dir, subject, task, version):
     filepath = os.path.join(postproc_dir, subject, filename)
     return pd.read_pickle(filepath)
 
-def load_stim_erp(df, time_before, time_after, channels=None, preproc_dir='/data/preprocessed'):
+def load_stim_erp(df, time_before, time_after, channels=None, preproc_dir='/media/moor-data/preprocessed'):
     if len(df) == 0:
         raise ValueError("No trials to load")
     
@@ -83,7 +83,7 @@ def make_equal_sizes(df, seed=None):
     # Sample equally from each condition
     df_balanced = (
         df.groupby('condition', group_keys=False)
-          .apply(lambda x: x.sample(min_count, random_state=seed), include_groups=False)
+          .apply(lambda x: x.sample(min_count, random_state=seed))
           .reset_index(drop=True)
     )
     
@@ -164,7 +164,7 @@ def filter_stim_trials(df, gain_range=None, power_range=None, min_isi=None, debu
     
 def get_bad_stim_trials(df, time_before=0.25, time_after=0, sd_thr=5, ch_frac=0.1, 
                         channels=None, debug=False, 
-                        preproc_dir='/data/preprocessed'):
+                        preproc_dir='/media/moor-data/preprocessed'):
     if channels is None:
         _, acq_ch, _ = aopy.data.load_chmap()
         channels = acq_ch - 1
@@ -203,7 +203,7 @@ def calc_slic_map(df, stim_site=None, time_before=0.25, time_after=0.25,
                                     time_before, time_after, channels=acq_ch-1)
     
     if stim_site is None:
-        stim_site = np.unique(df['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(df['stimulation_site'].astype(int))[0]
     ch_near_stim = get_acq_ch_near_stimulation_site(stim_site)
     stim_ch = np.where(np.isin(acq_ch, ch_near_stim))[0]
     
@@ -224,24 +224,29 @@ def calc_slic_map(df, stim_site=None, time_before=0.25, time_after=0.25,
     else:
         return freqs, time, coh_all
     
-
-def calc_null_maps(df_null, n_reps, n_trials, mapping_fn, parallel=False, **kwargs):
+from joblib import Parallel, delayed
+def calc_null_maps(df_null, n_reps, n_trials, mapping_fn, parallel=True, n_jobs=40):
     '''
+    Parallelized version of null map calculation using Joblib.
     '''
-    null_trial_idx = 0
-    pool = False
-    if parallel:
-        pool = mp.Pool(mp.cpu_count()//2)
-    null_data = []
-    for n in tqdm(range(n_reps)):
+    slices = [
+        (i * n_trials, (i + 1) * n_trials) 
+        for i in range(n_reps)
+    ]
 
-        df_null_sub = df_null.iloc[null_trial_idx:null_trial_idx+n_trials].reset_index()
-        null_trial_idx += n_trials
-
-        null_data.append(mapping_fn(df_null_sub, pool, **kwargs))
-        
     if parallel:
-        pool.close()
+        null_data = Parallel(n_jobs=n_jobs)(
+            delayed(mapping_fn)(
+                df_null.iloc[start:end].reset_index()
+            )
+            for start, end in tqdm(slices)
+        )
+    else:
+        null_data = []
+        for start, end in tqdm(slices):
+            df_null_sub = df_null.iloc[start:end].reset_index()
+            null_data.append(mapping_fn(df_null_sub))
+            
     return null_data
 
 
@@ -251,13 +256,13 @@ def calc_null_slic_maps(df_null, n_reps, stim_site=None, n_trials=None, like=Non
     wrapper for slic. specify n_trials and stim_site or provide a dataframe in 'like'
     '''
     if stim_site is None:
-        stim_site = np.unique(like['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(like['stimulation_site'].astype(int))[0]
     if n_trials is None:
         n_trials = len(like)
 
-    mapping_fn = lambda df, pool: calc_slic_map(df, stim_site=stim_site, time_before=time_before, 
+    mapping_fn = lambda df: calc_slic_map(df, stim_site=stim_site, time_before=time_before, 
                                                 time_after=time_after, taper_len=taper_len, 
-                                                parallel=pool, diff=diff)
+                                                parallel=False, verbose=False, diff=diff)
     maps = calc_null_maps(df_null, n_reps, n_trials, mapping_fn, parallel=True)
     
     freqs_, time_, maps = zip(*maps)
@@ -304,7 +309,7 @@ def calc_opto_resp(df, stim_site=None, time_before=0.25, time_after=0.25, debug=
     elec_pos, acq_ch, _ = aopy.data.load_chmap()
     
     if stim_site is None:
-        stim_site = np.unique(df['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(df['stimulation_site'].astype(int))[0]
 
     bad_trials = get_bad_stim_trials(df, channels=acq_ch-1, debug=debug)
     # print(f"removed {np.sum(bad_trials)} bad trials")
@@ -330,18 +335,18 @@ def calc_null_opto_resp(df_null, n_reps, stim_site=None, n_trials=None, like=Non
     wrapper for slic. specify n_trials and stim_site or provide a dataframe in 'like'
     '''
     if stim_site is None:
-        stim_site = np.unique(like['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(like['stimulation_site'].astype(int))[0]
     if n_trials is None:
         n_trials = len(like)
 
-    mapping_fn = lambda df, pool: calc_opto_resp(df, stim_site=stim_site,
+    mapping_fn = lambda df: calc_opto_resp(df, stim_site=stim_site,
                                                  time_before=time_before, 
                                                  time_after=time_after)
     maps = calc_null_maps(df_null, n_reps, n_trials, mapping_fn)
     return maps
 
 # Quantify significant connections
-def count_significant_connections(p_sites, alpha=0.01):
+def count_significant_connections(p_sites, alpha=0.05):
     
     counts = []
     for idx in range(len(p_sites)):
@@ -428,9 +433,9 @@ def calc_null_latency_maps(df_null, n_reps, n_trials=None, like=None, time_befor
     if n_trials is None:
         n_trials = len(like)
 
-    mapping_fn = lambda df, pool: calc_latency(df, time_before=time_before, 
+    mapping_fn = lambda df: calc_latency(df, time_before=time_before, 
                                                time_after=time_after, band=band, taper_len=taper_len, 
-                                               window_len=window_len)
+                                               window_len=window_len, )
     maps = calc_null_maps(df_null, n_reps, n_trials, mapping_fn)
     
     max_itpc, latency_itpc = zip(*maps)
@@ -520,7 +525,7 @@ def calc_variability(df, stim_site=None, time_before=0.25, time_after=0.25,
     elec_pos, acq_ch, _ = aopy.data.load_chmap()
 
     if stim_site is None:
-        stim_site = np.unique(df['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(df['stimulation_site'].astype(int))[0]
 
     bad_trials = get_bad_stim_trials(df, channels=acq_ch-1, debug=debug)
     print(f"removed {np.sum(bad_trials)} bad trials")
@@ -631,7 +636,7 @@ def calc_gc_map(df, stim_site=None, time_before=0.25, time_after=0.25, debug=Fal
     elec_pos, acq_ch, elecs = aopy.data.load_chmap()
     
     if stim_site is None:
-        stim_site = np.unique(df['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(df['stimulation_site'].astype(int))[0]
 
     bad_trials = get_bad_stim_trials(df, channels=acq_ch-1, debug=debug)
     if verbose:
@@ -643,6 +648,24 @@ def calc_gc_map(df, stim_site=None, time_before=0.25, time_after=0.25, debug=Fal
     stim_ch = np.where(np.isin(acq_ch, ch_near_stim))[0]
     
     return calc_connectivity_map_gc(erp, samplerate, time_before, time_after, stim_ch=stim_ch, verbose=verbose)
+
+def _null_gc_worker(args):
+    """
+    Worker function that runs in a separate process.
+    It creates its own independent RNG using the provided seed.
+    """
+    seed, erp, samplerate, time_before, time_after, stim_ch = args
+    rng = np.random.default_rng(seed)
+    shuffled_order = rng.permutation(len(erp))
+    freqs, time, gc = calc_connectivity_map_gc(
+        erp[shuffled_order], 
+        samplerate, 
+        time_before, 
+        time_after, 
+        stim_ch=stim_ch,
+        verbose=False
+    )
+    return freqs, time, gc
 
 def calc_null_gc_maps(df, n_reps, stim_site=None, like=None, 
                       time_before=0.25, time_after=0.25, debug=False):
@@ -659,9 +682,9 @@ def calc_null_gc_maps(df, n_reps, stim_site=None, like=None,
     elec_pos, acq_ch, elecs = aopy.data.load_chmap()
 
     if like is not None:
-        stim_site = np.unique(like['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(like['stimulation_site'].astype(int))[0]
     elif stim_site is None:
-        stim_site = np.unique(df['stimulation_site']).astype(int)[0]
+        stim_site = np.unique(df['stimulation_site'].astype(int))[0]
         
     bad_trials = get_bad_stim_trials(df, channels=acq_ch-1, debug=debug)
     erp, samplerate = load_stim_erp(df[~bad_trials].reset_index(drop=True), 
@@ -670,15 +693,29 @@ def calc_null_gc_maps(df, n_reps, stim_site=None, like=None,
     ch_near_stim = get_acq_ch_near_stimulation_site(stim_site)
     stim_ch = np.where(np.isin(acq_ch, ch_near_stim))[0]
     
-    rng = np.random.default_rng(seed=5)
+#     rng = np.random.default_rng(seed=5)
+#     null_gc = []
+#     for n in tqdm(range(n_reps)):
 
-    null_gc = []
-    for n in tqdm(range(n_reps)):
+#         shuffled_order = rng.permutation(len(erp)) # shuffled time index
+#         freqs, time, gc = calc_connectivity_map_gc(erp[shuffled_order], samplerate, time_before, time_after, stim_ch=stim_ch)
+#         null_gc.append(gc)
 
-        shuffled_order = rng.permutation(len(erp)) # shuffled time index
-        freqs, time, gc = calc_connectivity_map_gc(erp[shuffled_order], samplerate, time_before, time_after, stim_ch=stim_ch)
-        null_gc.append(gc)
-        
+    ss = np.random.SeedSequence(5)
+    worker_seeds = ss.generate_state(n_reps)
+    task_args = [
+        (seed, erp, samplerate, time_before, time_after, stim_ch) 
+        for seed in worker_seeds
+    ]
+
+    results = []
+    with mp.Pool(processes=5, maxtasksperchild=1) as pool:
+        for res in tqdm(pool.imap(_null_gc_worker, task_args), total=len(task_args)):
+            results.append(res)    
+    
+    all_freqs, all_times, null_gc = zip(*results)
+    freqs = all_freqs[0]
+    time = all_times[0]
     return freqs, time, null_gc
 
 
@@ -721,7 +758,7 @@ def convert_days_to_implant(days, max_gap=5):
     implant = np.insert(np.cumsum(chg), 0, 0)
     return implant
 
-def get_open_closed_mask(preproc_dir, df, open_ratio=0.5, closed_ratio=0.8, time_before=0.5,
+def get_open_closed_mask(preproc_dir, df, open_ratio=0.4, closed_ratio=0.6, time_before=0.5,
                         time_after=0.5, samplerate=1000):
     eye_data = aopy.data.tabulate_kinematic_data(preproc_dir, df['subject'], df['te_id'], df['date'], df['trial_time']-time_before, df['trial_time']+time_after, datatype='eye_raw', samplerate=samplerate)
     exp_data, exp_metadata = aopy.data.load_preproc_exp_data(preproc_dir, df['subject'][0],
@@ -744,15 +781,15 @@ def get_open_closed_mask(preproc_dir, df, open_ratio=0.5, closed_ratio=0.8, time
     return eyes_open_trials, eyes_closed_trials
 
 
-def calc_volume(erp_maps, erp_null_maps, alpha=0.01):
+def calc_volume(erp_maps, erp_null_maps, alpha=0.05):
     
     volume = [np.array(0) for _ in range(len(erp_maps))]
     null_volume = [np.array(0) for _ in range(len(erp_maps))]
     for idx in range(len(erp_maps)):
         max_erp_ = erp_maps[idx]
         null_max_erp_ = erp_null_maps[idx]
-        volume[idx] = abs(np.mean(max_erp_))
-        null_volume[idx] = [abs(np.mean(data)) for data in null_max_erp_]
+        volume[idx] = np.mean(abs(max_erp_))
+        null_volume[idx] = [np.mean(abs(data)) for data in null_max_erp_]
 
     volume, p = calc_fdrc_ranktest(volume, np.array(null_volume).T, alpha=alpha)
     return volume, p

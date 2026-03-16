@@ -27,19 +27,23 @@ from aopy.analysis.latency import detect_itpc_response
 from aopy.visualization import overlay_sulci_on_spatial_map, plot_xy_scalebar, plot_tf_map_grid
 
 color_monkey_1 = '#90d0df'
-color_monkey_2 = '#55afdf'
+color_monkey_2 = '#227fb1'
 color_accllr = '#ead292'
 color_accllr_text = '#dfbd5c'
 color_slic = '#c2e4d7'
 color_slic_text = '#7fc6aa'
 color_granger = '#bab0d9'
 color_granger_text = '#9d8ec9'
+color_granger_stim = '#f2aade'
+color_granger_stim_text = '#e873c9'
 cmap_accllr = sns.blend_palette(['black', color_accllr], n_colors=100, as_cmap=True)
 cmap_slic = sns.blend_palette(['black', color_slic], n_colors=100, as_cmap=True)
 cmap_granger = sns.blend_palette(['black', color_granger], n_colors=100, as_cmap=True)
+cmap_granger_stim = sns.blend_palette(['black', color_granger_stim], n_colors=100, as_cmap=True)
 cmap_accllr_inv = sns.blend_palette(['white', color_accllr], n_colors=100, as_cmap=True)
 cmap_slic_inv = sns.blend_palette(['white', color_slic], n_colors=100, as_cmap=True)
 cmap_granger_inv = sns.blend_palette(['white', color_granger], n_colors=100, as_cmap=True)
+cmap_granger_stim_inv = sns.blend_palette(['white', color_granger_stim], n_colors=100, as_cmap=True)
 
 from connectivity_analysis import *
 
