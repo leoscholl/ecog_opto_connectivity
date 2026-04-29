@@ -444,13 +444,23 @@ def calc_null_latency_maps(df_null, n_reps, n_trials=None, like=None, time_befor
 def calc_latency_accllr(df, time_before=0.25, time_after=0.25, 
                         band=[50, 200], taper_len=0.03, window_len=0.16, 
                         alpha=0.05, selectivity_cutoff=0.05, 
-                        latency_cutoff=None, debug=False, 
+                        latency_cutoff=None, filter_data=True, debug=False, 
                         verbose=True, parallel=True):
     subject = df['subject'][0]
     if subject == 'affi':
         theta = 90
     else:
         theta = 0
+    
+    if parallel is True:
+        pool = mp.Pool(mp.cpu_count()//2)
+    elif parallel:
+        pool = parallel
+    else:
+        pool = False
+        
+    if not filter_data:
+        taper_len = 0
         
     if latency_cutoff is None:
         latency_cutoff = 0.003 + taper_len/2
@@ -465,17 +475,14 @@ def calc_latency_accllr(df, time_before=0.25, time_after=0.25,
     erp, samplerate = load_stim_erp(df[~bad_trials].reset_index(drop=True), 
                                     time_before, time_after, channels=acq_ch-1)
     
-    filt_data = np.abs(aopy.precondition.mt_bandpass_filter(erp.reshape(len(erp),-1), band, taper_len, samplerate, complex_output=True))
-    filt_data = np.reshape(filt_data, erp.shape)
-    time = np.arange(len(erp))/samplerate - time_before
-    filt_data = aopy.analysis.subtract_erp_baseline(filt_data, time, -taper_len-window_len, -taper_len)
-    
-    if parallel is True:
-        pool = mp.Pool(mp.cpu_count()//2)
-    elif parallel:
-        pool = parallel
+    if filter_data:
+        filt_data = np.abs(aopy.precondition.mt_bandpass_filter(erp.reshape(len(erp),-1), band, taper_len, samplerate, complex_output=True))
+        filt_data = np.reshape(filt_data, erp.shape)
+        time = np.arange(len(erp))/samplerate - time_before
+        filt_data = aopy.analysis.subtract_erp_baseline(filt_data, time, -taper_len-window_len, -taper_len)
     else:
-        pool = False
+        filt_data = erp
+        
     altcond_window = (-taper_len/2, window_len - taper_len/2)
     nullcond_window = (-taper_len - window_len, -taper_len)
     altcond, nullcond = aopy.analysis.latency.prepare_erp(filt_data, filt_data, samplerate, time_before, time_after, nullcond_window, altcond_window)[:2]

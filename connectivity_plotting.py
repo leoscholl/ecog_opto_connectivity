@@ -119,6 +119,7 @@ def plot_stim_erp_time(erp_ch, time_before, time_after, samplerate, stim_site, s
     ax.set_xlabel('time (ms)')
     ax.set_xticks([0, 1000*time_after])
     ax.set_yticks([0, round(erp_ch.shape[1],-1)])
+    ax.set_xlim(0, 1000*time_after)
     return im
 
     

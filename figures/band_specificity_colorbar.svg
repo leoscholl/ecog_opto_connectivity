@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-02-18T16:41:18.888775</dc:date>
+    <dc:date>2026-03-19T12:43:47.099551</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -43,12 +43,12 @@ z
     <g id="xtick_1">
      <g id="line2d_1">
       <defs>
-       <path id="m608fc553c1" d="M 0 0 
+       <path id="mcc3f38a8e6" d="M 0 0 
 L 0 4.8 
 " style="stroke: #262626"/>
       </defs>
       <g>
-       <use xlink:href="#m608fc553c1" x="32.4" y="57.6" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#mcc3f38a8e6" x="32.4" y="57.6" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_1">
@@ -58,7 +58,7 @@ L 0 4.8
     <g id="xtick_2">
      <g id="line2d_2">
       <g>
-       <use xlink:href="#m608fc553c1" x="71.28" y="57.6" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#mcc3f38a8e6" x="71.28" y="57.6" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_2">
@@ -70,12 +70,12 @@ L 0 4.8
     <g id="ytick_1">
      <g id="line2d_3">
       <defs>
-       <path id="m3541420665" d="M 0 0 
+       <path id="m0578caa220" d="M 0 0 
 L -4.8 0 
 " style="stroke: #262626"/>
       </defs>
       <g>
-       <use xlink:href="#m3541420665" x="32.4" y="57.6" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#m0578caa220" x="32.4" y="57.6" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_3">
@@ -85,7 +85,7 @@ L -4.8 0
     <g id="ytick_2">
      <g id="line2d_4">
       <g>
-       <use xlink:href="#m3541420665" x="32.4" y="32.4" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#m0578caa220" x="32.4" y="32.4" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_4">
@@ -95,7 +95,7 @@ L -4.8 0
     <g id="ytick_3">
      <g id="line2d_5">
       <g>
-       <use xlink:href="#m3541420665" x="32.4" y="7.2" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#m0578caa220" x="32.4" y="7.2" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_5">
@@ -139,12 +139,12 @@ z
     <g id="ytick_4">
      <g id="line2d_6">
       <defs>
-       <path id="ma0e6af41d0" d="M 0 0 
+       <path id="me80879f2fe" d="M 0 0 
 L 4.8 0 
 " style="stroke: #262626"/>
       </defs>
       <g>
-       <use xlink:href="#ma0e6af41d0" x="76.23" y="57.6" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#me80879f2fe" x="76.23" y="57.6" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_6">
@@ -154,7 +154,7 @@ L 4.8 0
     <g id="ytick_5">
      <g id="line2d_7">
       <g>
-       <use xlink:href="#ma0e6af41d0" x="76.23" y="7.2" style="fill: #262626; stroke: #262626"/>
+       <use xlink:href="#me80879f2fe" x="76.23" y="7.2" style="fill: #262626; stroke: #262626"/>
       </g>
      </g>
      <g id="text_7">
@@ -162,17 +162,16 @@ L 4.8 0
      </g>
     </g>
     <g id="text_8">
-     <!-- $R^2$ -->
-     <g style="fill: #262626" transform="translate(99.420781 37.98) rotate(-90)">
+     <!-- $r$ -->
+     <g style="fill: #262626" transform="translate(99.420781 34.29) rotate(-90)">
       <text>
-       <tspan x="0" y="-0.873438" style="font-style: oblique; font-size: 9px; font-family: 'DejaVu Sans'; fill: #262626">R</tspan>
-       <tspan x="6.885059" y="-4.31875" style="font-size: 6.3px; font-family: 'DejaVu Sans'; fill: #262626">2</tspan>
+       <tspan x="0" y="-0.953125" style="font-style: oblique; font-size: 9px; font-family: 'DejaVu Sans'; fill: #262626">r</tspan>
       </text>
      </g>
     </g>
    </g>
    <image xlink:href="data:image/png;base64,
-iVBORw0KGgoAAAANSUhEUgAAAAsAAADSCAYAAACcnTrBAAAAtklEQVR4nO2WwQrAMAhDdez//7jtrj2qkBElPYfwYkTq55xjwfdEhWZmb8I4J8ZhjA9IgpFy1jTKzsL4CWPvDXKGBSQRA6ehUqpilVLHyAQkqXu+mKMULVJ7MUcpwMO41gI54+bMUQoQo+M0Om7deGaSReroTCImaVCl3OKOp2B8gyrlH4zxzOMDjmceH7CjM8l9xk0DF1DMZeeOW9eRWc5lZxIMBSw76ydzizPM7u5hazezsPgDoAw3P4ueilkAAAAASUVORK5CYII=" id="imagefc045b9869" transform="scale(1 -1) translate(0 -50.4)" x="73.68" y="-7.2" width="2.64" height="50.4"/>
+iVBORw0KGgoAAAANSUhEUgAAAAsAAADSCAYAAACcnTrBAAAAtklEQVR4nO2WwQrAMAhDdez//7jtrj2qkBElPYfwYkTq55xjwfdEhWZmb8I4J8ZhjA9IgpFy1jTKzsL4CWPvDXKGBSQRA6ehUqpilVLHyAQkqXu+mKMULVJ7MUcpwMO41gI54+bMUQoQo+M0Om7deGaSReroTCImaVCl3OKOp2B8gyrlH4zxzOMDjmceH7CjM8l9xk0DF1DMZeeOW9eRWc5lZxIMBSw76ydzizPM7u5hazezsPgDoAw3P4ueilkAAAAASUVORK5CYII=" id="image7bea148b97" transform="scale(1 -1) translate(0 -50.4)" x="73.68" y="-7.2" width="2.64" height="50.4"/>
    <g id="LineCollection_1"/>
    <g id="patch_8">
     <path d="M 73.71 57.6 
