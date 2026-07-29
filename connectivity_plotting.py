@@ -386,3 +386,377 @@ def plot_itpc_latency_map(max_itpc, latency_itpc, stimulation_site, theta, grid_
     aopy.visualization.annotate_spatial_map_channels(acq_ch=[stimulation_site], theta=theta,
                                                      fontsize=fontsize, color=color, drive_type='Opto32', ax=ax)
 
+
+# ---------------------------------------------------------------------------
+# Source-data export
+#
+# Helpers for saving the numbers behind each figure to a per-figure Excel
+# workbook (one worksheet per subplot / data component), e.g. for journal
+# source-data files. Used by the notebooks alongside each savefig call.
+# ---------------------------------------------------------------------------
+
+def _clean_sheet_name(name):
+    """Coerce an arbitrary label into a valid, unique-ish Excel sheet name."""
+    name = str(name)
+    for ch in '[]:*?/\\':
+        name = name.replace(ch, '_')
+    return name[:31]
+
+
+# ---------------------------------------------------------------------------
+# Source-data relabeling
+#
+# The notebooks build the source-data DataFrames using the terse variable
+# names from the analysis code (``slic``, ``gc``, ``beignet`` ...). For the
+# published source-data workbooks we want the sheet names, column headers and
+# subject values to read the way they are labeled in the figures. All of that
+# relabeling is centralized here so the notebook re-run path and any one-off
+# rewrite of an existing workbook use exactly the same mapping.
+# ---------------------------------------------------------------------------
+
+# Subject codenames -> figure labels (also applied to any ``subject`` column).
+SUBJECT_LABELS = {'beignet': 'Monkey 1', 'affi': 'Monkey 2'}
+
+# Structural columns shared by every spatial-map / stim-map sheet.
+_BASE_COLUMN_LABELS = {
+    'elec': 'Electrode',
+    'acq_ch': 'Acquisition channel',
+    'stim_ch': 'Stimulation site',
+    'x': 'x (mm)',
+    'y': 'y (mm)',
+}
+
+# Example-map column labels reused across several figures (response-size /
+# metric role kept in parentheses; subject codename -> figure label).
+_EXAMPLE_MAP_LABELS = {
+    'beignet_site11': 'Monkey 1, site 11', 'beignet_site7': 'Monkey 1, site 7',
+    'affi_site6': 'Monkey 2, site 6', 'affi_site13': 'Monkey 2, site 13',
+    'beignet_site15': 'Monkey 1, site 15', 'beignet_site22': 'Monkey 1, site 22',
+    'affi_site14': 'Monkey 2, site 14', 'affi_site10': 'Monkey 2, site 10',
+    'big_beignet_site7': 'Monkey 1, site 7 (big)',
+    'little_beignet_site11': 'Monkey 1, site 11 (little)',
+    'little_beignet_site7': 'Monkey 1, site 7 (little)',
+    'little_affi_site6': 'Monkey 2, site 6 (little)',
+    'little_affi_site13': 'Monkey 2, site 13 (little)',
+    'small_beignet_site15': 'Monkey 1, site 15 (small)',
+    'small_beignet_site28': 'Monkey 1, site 28 (small)',
+    'small_affi_site14': 'Monkey 2, site 14 (small)',
+    'small_affi_site29': 'Monkey 2, site 29 (small)',
+}
+
+_BAND_LABELS = {
+    '0.5-12': '0.5–12 Hz', '12-30': '12–30 Hz', '30-80': '30–80 Hz',
+    '80-120': '80–120 Hz', '120-200': '120–200 Hz',
+}
+
+# Per-figure, per-sheet column relabeling. Keys are the ORIGINAL sheet/column
+# names produced by the notebooks. ``subject`` columns and the structural
+# columns above are handled automatically and need not be listed here.
+SOURCE_DATA_LABELS = {
+    'figure2': {
+        'example_erp_map': {'response_sigma': 'Response (σ)'},
+        'erp_mean_timeseries': {'time_s': 'Time (s)'},
+        'erp_pulsewidth_sweep': {'time_s': 'Time (s)', 'width_0.0': 'Pulse width 0.0 s',
+                                 'width_0.01': 'Pulse width 0.01 s', 'width_0.02': 'Pulse width 0.02 s'},
+        'single_trial_stim': {'__trials__': True},
+        'single_trial_near': {'__trials__': True},
+        'single_trial_far': {'__trials__': True},
+        'example_response_maps': _EXAMPLE_MAP_LABELS,
+        'auc_volume_beignet': {'mean_response_sigma': 'Mean response (σ)'},
+        'auc_volume_affi': {'mean_response_sigma': 'Mean response (σ)'},
+        'erp_example_maps': {
+            'implant1_first_day2022-02-15': 'Implant 1, first day (2022-02-15)',
+            'implant1_last_day2022-02-22': 'Implant 1, last day (2022-02-22)',
+            'implant2_first_day2022-03-15': 'Implant 2, first day (2022-03-15)',
+            'implant2_last_day2022-04-14': 'Implant 2, last day (2022-04-14)',
+            'implant3_first_day2022-06-08': 'Implant 3, first day (2022-06-08)',
+            'implant3_last_day2022-06-27': 'Implant 3, last day (2022-06-27)',
+        },
+        'day1_vs_day8_scatter': {'day1_response': 'Day 1 response (σ)',
+                                 'day8_response': 'Day 8 response (σ)'},
+        'erp_longitude_correlation': {'stim_site': 'Stimulation site',
+                                      'implant_index': 'Implant index',
+                                      'correlation_r': 'Spatial correlation (r)'},
+    },
+    'figure3': {
+        'connections_pooled': {'stim_site': 'Stimulation site', 'latency_accllr': 'AccLLR latency (ms)',
+                               'latency_itpc': 'ITPC latency (ms)', 'distance': 'Distance (mm)',
+                               'slic': 'SLIC', 'angle': 'Phase difference (rad)', 'gp': 'GP'},
+        'latency_example_maps_ms': _EXAMPLE_MAP_LABELS,
+        'phase_diff_vs_distance': {'stim_site': 'Stimulation site', 'distance': 'Distance (mm)',
+                                   'angle': 'Phase difference (rad)',
+                                   'absolute_angle': 'Absolute phase difference (rad)'},
+        'cutoff_sweep': {'site_idx': 'Stimulation site index', 'cutoff': 'Cutoff latency (ms)',
+                         'accllr': 'AccLLR connection count'},
+        'cutoff_serr_maps': {
+            'beignet_site7_cutoff10ms': 'Monkey 1, site 7 (10 ms cutoff)',
+            'beignet_site7_cutoff15ms': 'Monkey 1, site 7 (15 ms cutoff)',
+            'beignet_site7_cutoff20ms': 'Monkey 1, site 7 (20 ms cutoff)',
+            'affi_site25_cutoff10ms': 'Monkey 2, site 25 (10 ms cutoff)',
+            'affi_site25_cutoff15ms': 'Monkey 2, site 25 (15 ms cutoff)',
+            'affi_site25_cutoff20ms': 'Monkey 2, site 25 (20 ms cutoff)',
+        },
+        'accllr_example_maps': _EXAMPLE_MAP_LABELS,
+    },
+    'figure4': {
+        'slic_phase_example_maps': {
+            'main_beignet_site7_slic': 'Monkey 1, site 7 SLIC (main)',
+            'main_beignet_site7_phase': 'Monkey 1, site 7 phase (main)',
+            'little_beignet_site11_slic': 'Monkey 1, site 11 SLIC (little)',
+            'little_beignet_site11_phase': 'Monkey 1, site 11 phase (little)',
+            'little_beignet_site7_slic': 'Monkey 1, site 7 SLIC (little)',
+            'little_beignet_site7_phase': 'Monkey 1, site 7 phase (little)',
+            'little_affi_site6_slic': 'Monkey 2, site 6 SLIC (little)',
+            'little_affi_site6_phase': 'Monkey 2, site 6 phase (little)',
+            'little_affi_site13_slic': 'Monkey 2, site 13 SLIC (little)',
+            'little_affi_site13_phase': 'Monkey 2, site 13 phase (little)',
+            'small_beignet_site15_slic': 'Monkey 1, site 15 SLIC (small)',
+            'small_beignet_site15_phase': 'Monkey 1, site 15 phase (small)',
+            'small_beignet_site28_slic': 'Monkey 1, site 28 SLIC (small)',
+            'small_beignet_site28_phase': 'Monkey 1, site 28 phase (small)',
+            'small_affi_site14_slic': 'Monkey 2, site 14 SLIC (small)',
+            'small_affi_site14_phase': 'Monkey 2, site 14 phase (small)',
+            'small_affi_site29_slic': 'Monkey 2, site 29 SLIC (small)',
+            'small_affi_site29_phase': 'Monkey 2, site 29 phase (small)',
+        },
+    },
+    'figure5': {
+        'counts_by_site': {'stim_site': 'Stimulation site', 'volume': 'Response volume',
+                           'accllr': 'AccLLR connection count', 'slic': 'SLIC connection count',
+                           'gcs': 'SEGP connection count', 'gc': 'GP connection count'},
+        'example_maps_beignet_site7': {'accllr': 'AccLLR', 'slic': 'SLIC',
+                                       'gc_stim': 'SEGP', 'gc': 'GP'},
+        'example_maps_site12': {'slic_group1': 'SLIC (group 1)', 'slic_group2': 'SLIC (group 2)',
+                                'accllr_group1': 'AccLLR (group 1)', 'accllr_group2': 'AccLLR (group 2)',
+                                'gc_group1': 'GP (group 1)', 'gc_group2': 'GP (group 2)'},
+        'correlation_matrix': {'row': 'Metric group'},
+        'within_vs_across': {'site': 'Stimulation site',
+                             'within_mean': 'Within-metric correlation, mean (SLIC–SLIC, GP–GP)',
+                             'across_mean': 'Across-metric correlation, mean (SLIC–GP)',
+                             'within_err': 'Within-metric correlation, SD',
+                             'across_err': 'Across-metric correlation, SD'},
+        'within_vs_across_gp': {'site': 'Stimulation site',
+                                'within_mean': 'Within-metric correlation, mean (GP–GP, SEGP–SEGP)',
+                                'across_mean': 'Across-metric correlation, mean (GP–SEGP)',
+                                'within_err': 'Within-metric correlation, SD',
+                                'across_err': 'Across-metric correlation, SD'},
+        'correlation_vs_volume': {'site': 'Stimulation site', 'volume': 'Mean response (σ)',
+                                  'slic_gps': 'SLIC–SEGP correlation', 'slic_gp': 'SLIC–GP correlation',
+                                  'gps_gp': 'SEGP–GP correlation'},
+    },
+    'figure6': {
+        'slic_beignet': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'gp_beignet': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'segp_beignet': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'slic_affi': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'gp_affi': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'segp_affi': dict(_BAND_LABELS, from_band='From band (Hz)'),
+        'slic_bands': dict(_BAND_LABELS),
+        'gp_bands': dict(_BAND_LABELS),
+        'segp_bands': dict(_BAND_LABELS),
+        'distance_pooled': {'stim_site': 'Stimulation site', 'band_idx': 'Band index',
+                            'distance': 'Distance (mm)', 'slic': 'SLIC', 'gp': 'GP',
+                            'angle': 'Phase difference (rad)'},
+        'ks_effect_size': {'band': 'Band (Hz)', 'ks_observed': 'KS statistic (observed)',
+                           'null_mean': 'Null mean', 'null_p05': 'Null 5th percentile',
+                           'null_p95': 'Null 95th percentile'},
+    },
+    'figure7': {
+        'slic_example_maps': {'implant1_first': 'Implant 1, first', 'implant1_last': 'Implant 1, last',
+                              'implant2_first': 'Implant 2, first', 'implant2_last': 'Implant 2, last',
+                              'implant3_first': 'Implant 3, first', 'implant3_last': 'Implant 3, last'},
+        'volume_vs_correlation': {'volume': 'Mean response (σ)', 'variance': 'Response variance',
+                                  'mean': 'Mean connectivity (normalized)',
+                                  'correlation': 'Spatial correlation (r)', 'group': 'Metric'},
+        'slic_correlation_box': {'value': 'Spatial correlation (r)', 'site': 'Implant', 'cat': 'Condition'},
+        'gc_correlation_box': {'value': 'Spatial correlation (r)', 'site': 'Implant', 'cat': 'Condition'},
+        'state_example_erp': {'erp_open': 'Eyes open response (σ)',
+                              'erp_closed': 'Eyes closed response (σ)'},
+        'state_example_slic': {'slic_mean1': 'SLIC, state 1', 'slic_mean2': 'SLIC, state 2',
+                               'slic_mean2_minus_mean1': 'ΔSLIC (state 2 − state 1)'},
+        'state_summary_slic_hist': {'bin_center': 'SLIC bin center',
+                                    'dist1_counts': 'State 1 count', 'dist2_counts': 'State 2 count'},
+        'state_summary_dprime_map': {'dprime': 'd-prime'},
+        'state_all_dprime': {'beignet_site11': 'Monkey 1, site 11', 'beignet_site7': 'Monkey 1, site 7',
+                             'beignet_site15': 'Monkey 1, site 15', 'affi_site14': 'Monkey 2, site 14',
+                             'affi_site20': 'Monkey 2, site 20'},
+        'state_all_sig_counts': {'site': 'Site', 'n_significant_electrodes': 'Significant electrode count'},
+    },
+}
+
+# Cell VALUES (not headers) that carry a subject codename or example-map label.
+_SOURCE_DATA_VALUE_RELABEL = {
+    'figure7': {'state_all_sig_counts': {'site': {
+        'beignet_site11': 'Monkey 1, site 11', 'beignet_site7': 'Monkey 1, site 7',
+        'beignet_site15': 'Monkey 1, site 15', 'affi_site14': 'Monkey 2, site 14',
+        'affi_site20': 'Monkey 2, site 20'}}},
+}
+
+
+def _relabel_source_sheet(fig_name, sheet_name, df):
+    """Return ``(new_sheet_name, relabeled_df)`` for a source-data worksheet.
+
+    Renames the sheet, its columns and any subject/example-map cell values from
+    the notebook's variable names to the labels used in the figures, using
+    :data:`SOURCE_DATA_LABELS`. Anything not covered by the table is passed
+    through unchanged.
+    """
+    df = df.copy()
+    col_spec = dict(SOURCE_DATA_LABELS.get(fig_name, {}).get(sheet_name, {}))
+
+    # Single-trial sheets: columns are trial indices -> "Trial 1", "Trial 2", ...
+    if col_spec.pop('__trials__', False):
+        df.columns = [f'Trial {i + 1}' for i in range(len(df.columns))]
+
+    # Remap subject-codename cell values before any column is renamed.
+    for col, value_map in _SOURCE_DATA_VALUE_RELABEL.get(fig_name, {}).get(sheet_name, {}).items():
+        if col in df.columns:
+            df[col] = df[col].map(lambda v: value_map.get(v, v))
+    if 'subject' in df.columns:
+        df['subject'] = df['subject'].map(lambda v: SUBJECT_LABELS.get(v, v))
+
+    renames = {'subject': 'Subject'}
+    renames.update({k: v for k, v in _BASE_COLUMN_LABELS.items() if k in df.columns})
+    renames.update(col_spec)
+    df.rename(columns=renames, inplace=True)
+
+    new_name = str(sheet_name)
+    for code, label in SUBJECT_LABELS.items():
+        new_name = new_name.replace(code, label.replace(' ', '').lower())
+    return new_name, df
+
+
+def _source_data_filename(fig_name):
+    """``'figure2'`` / ``'Fig2'`` / ``'2'`` -> ``'Fig2_data.xlsx'``."""
+    m = re.search(r'(\d+)', str(fig_name))
+    return f'Fig{m.group(1)}_data.xlsx' if m else f'{fig_name}_data.xlsx'
+
+
+def _normalize_fig_name(fig_name):
+    """Map any figure identifier to the ``'figureN'`` key used in the tables."""
+    m = re.search(r'(\d+)', str(fig_name))
+    return f'figure{m.group(1)}' if m else str(fig_name)
+
+
+def relabel_source_workbook(path, fig_name=None):
+    """Rewrite an existing source-data workbook in place with figure labels.
+
+    Applies :func:`_relabel_source_sheet` to every worksheet, preserving order.
+    ``fig_name`` defaults to the figure number parsed from the file name.
+    """
+    if fig_name is None:
+        fig_name = os.path.basename(path)
+    fig_name = _normalize_fig_name(fig_name)
+    sheets = pd.read_excel(path, sheet_name=None)
+    with pd.ExcelWriter(path, engine='openpyxl', mode='w') as writer:
+        for name, df in sheets.items():
+            new_name, df2 = _relabel_source_sheet(fig_name, name, df)
+            df2.to_excel(writer, sheet_name=_clean_sheet_name(new_name), index=False)
+    print(f"[relabel] {path}: {len(sheets)} sheet(s) relabeled")
+
+
+def save_source_data(fig_name, sheets, fig_dir='./figures', new_file=False):
+    """Write the data behind a figure to ``<fig_dir>/Fig<N>_data.xlsx``.
+
+    Args:
+        fig_name (str): figure identifier, e.g. ``'figure2'`` (written to
+            ``Fig2_data.xlsx``).
+        sheets (dict): mapping of ``{sheet_name: pandas.DataFrame}``; one
+            worksheet is written per entry.
+        fig_dir (str, optional): output directory. Default ``'./figures'``.
+        new_file (bool, optional): if True (or the file does not yet exist),
+            start a fresh workbook. Use this on the FIRST write of a given
+            figure. Later writes append/replace sheets in place, so a figure
+            can be assembled across several cells and notebooks. Default False.
+
+    Sheet names, column headers and subject values are relabeled to the way
+    they appear in the figures (see :func:`_relabel_source_sheet`) before the
+    workbook is written.
+
+    A DataFrame is written with its index only when the index is named.
+    """
+    path = os.path.join(fig_dir, _source_data_filename(fig_name))
+    fig_key = _normalize_fig_name(fig_name)
+    if new_file or not os.path.exists(path):
+        mode, extra = 'w', {}
+    else:
+        mode, extra = 'a', {'if_sheet_exists': 'replace'}
+    written = []
+    with pd.ExcelWriter(path, engine='openpyxl', mode=mode, **extra) as writer:
+        for name, df in sheets.items():
+            new_name, df = _relabel_source_sheet(fig_key, name, df)
+            new_name = _clean_sheet_name(new_name)
+            df.to_excel(writer, sheet_name=new_name,
+                        index=bool(getattr(df.index, 'name', None)))
+            written.append(new_name)
+    print(f"[source data] {path}: wrote {len(sheets)} sheet(s): " + ", ".join(written))
+
+
+def map_source_df(values, theta=0, columns=None, value_name='value'):
+    """Per-electrode spatial-map values as a tidy DataFrame keyed by electrode.
+
+    Args:
+        values: a 1-D per-electrode array (one map) or a 2-D array / sequence
+            of per-electrode arrays stacked along axis 0 (one value column each).
+        theta (int, optional): chamber rotation used for the x/y columns.
+            Electrode ordering (and therefore value alignment) is independent
+            of theta. Default 0.
+        columns (list, optional): names for the value columns in the 2-D case.
+        value_name (str, optional): base name for the value column(s).
+
+    Returns:
+        pandas.DataFrame with columns ``elec, acq_ch, x, y`` plus one value
+        column per map.
+    """
+    elec_pos, acq_ch, elecs = aopy.data.load_chmap(theta=theta)
+    n = len(elecs)
+    df = pd.DataFrame({
+        'elec': np.asarray(elecs),
+        'acq_ch': np.asarray(acq_ch),
+        'x': np.asarray(elec_pos)[:, 0],
+        'y': np.asarray(elec_pos)[:, 1],
+    })
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim == 1:
+        arr = arr[None, :]
+        names = [value_name]
+    elif columns is not None:
+        names = list(columns)
+    else:
+        names = [f'{value_name}_{i}' for i in range(arr.shape[0])]
+    for name, row in zip(names, arr):
+        col = np.full(n, np.nan)
+        m = min(n, len(row))
+        col[:m] = np.asarray(row, dtype=float)[:m]
+        df[str(name)] = col
+    return df
+
+
+def stim_source_df(values, theta=0, columns=None, value_name='value'):
+    """Per-stimulation-site (Opto32) values as a tidy DataFrame keyed by stim site.
+
+    Same conventions as :func:`map_source_df`, but keyed by the 32 optical
+    stimulation sites instead of recording electrodes.
+    """
+    stim_pos, _, stim_ch = aopy.data.load_chmap('Opto32', theta=theta)
+    n = len(stim_ch)
+    df = pd.DataFrame({
+        'stim_ch': np.asarray(stim_ch),
+        'x': np.asarray(stim_pos)[:, 0],
+        'y': np.asarray(stim_pos)[:, 1],
+    })
+    arr = np.asarray(values, dtype=float)
+    if arr.ndim == 1:
+        arr = arr[None, :]
+        names = [value_name]
+    elif columns is not None:
+        names = list(columns)
+    else:
+        names = [f'{value_name}_{i}' for i in range(arr.shape[0])]
+    for name, row in zip(names, arr):
+        col = np.full(n, np.nan)
+        m = min(n, len(row))
+        col[:m] = np.asarray(row, dtype=float)[:m]
+        df[str(name)] = col
+    return df
+
